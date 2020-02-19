@@ -19,11 +19,11 @@ import io.netty.channel.ChannelException;
 import io.netty.channel.ChannelMetadata;
 import io.netty.channel.ChannelOption;
 import io.netty.channel.ChannelOutboundBuffer;
-import io.netty.util.internal.SocketUtils;
 import io.netty.channel.nio.AbstractNioMessageChannel;
 import io.netty.channel.socket.DefaultServerSocketChannelConfig;
 import io.netty.channel.socket.ServerSocketChannelConfig;
 import io.netty.util.internal.PlatformDependent;
+import io.netty.util.internal.SocketUtils;
 import io.netty.util.internal.SuppressJava6Requirement;
 import io.netty.util.internal.logging.InternalLogger;
 import io.netty.util.internal.logging.InternalLoggerFactory;
@@ -42,11 +42,13 @@ import java.util.Map;
 /**
  * A {@link io.netty.channel.socket.ServerSocketChannel} implementation which uses
  * NIO selector based implementation to accept new connections.
+ * 服务端的Channel(其实就是对ServerSocketChannel的一些包装)
  */
 public class NioServerSocketChannel extends AbstractNioMessageChannel
                              implements io.netty.channel.socket.ServerSocketChannel {
 
     private static final ChannelMetadata METADATA = new ChannelMetadata(false, 16);
+
     private static final SelectorProvider DEFAULT_SELECTOR_PROVIDER = SelectorProvider.provider();
 
     private static final InternalLogger logger = InternalLoggerFactory.getInstance(NioServerSocketChannel.class);
@@ -59,6 +61,7 @@ public class NioServerSocketChannel extends AbstractNioMessageChannel
              *
              *  See <a href="https://github.com/netty/netty/issues/2308">#2308</a>.
              */
+            // 获取一个ServerChannel
             return provider.openServerSocketChannel();
         } catch (IOException e) {
             throw new ChannelException(
@@ -66,6 +69,9 @@ public class NioServerSocketChannel extends AbstractNioMessageChannel
         }
     }
 
+    /**
+     * ServerSocketChannel配置类
+     */
     private final ServerSocketChannelConfig config;
 
     /**
@@ -117,6 +123,10 @@ public class NioServerSocketChannel extends AbstractNioMessageChannel
         return null;
     }
 
+    /**
+     * 返回的是 ServerSocketChannel对象
+     * @return
+     */
     @Override
     protected ServerSocketChannel javaChannel() {
         return (ServerSocketChannel) super.javaChannel();

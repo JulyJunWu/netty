@@ -27,11 +27,7 @@ import io.netty.util.internal.logging.InternalLogger;
 import io.netty.util.internal.logging.InternalLoggerFactory;
 
 import java.io.IOException;
-import java.net.ConnectException;
-import java.net.InetSocketAddress;
-import java.net.NoRouteToHostException;
-import java.net.SocketAddress;
-import java.net.SocketException;
+import java.net.*;
 import java.nio.channels.ClosedChannelException;
 import java.nio.channels.NotYetConnectedException;
 import java.util.concurrent.Executor;
@@ -54,6 +50,9 @@ public abstract class AbstractChannel extends DefaultAttributeMap implements Cha
     private volatile SocketAddress localAddress;
     private volatile SocketAddress remoteAddress;
     private volatile EventLoop eventLoop;
+    /**
+     * 注册的标志
+     */
     private volatile boolean registered;
     private boolean closeInitiated;
     private Throwable initialCloseCause;
@@ -71,7 +70,9 @@ public abstract class AbstractChannel extends DefaultAttributeMap implements Cha
     protected AbstractChannel(Channel parent) {
         this.parent = parent;
         id = newId();
+        // 根据Server和Client 创建不同的Unsafe对象,主要是用来操作IO
         unsafe = newUnsafe();
+        // 创建了ChannelPipeline管道
         pipeline = newChannelPipeline();
     }
 
@@ -464,13 +465,16 @@ public abstract class AbstractChannel extends DefaultAttributeMap implements Cha
 
             AbstractChannel.this.eventLoop = eventLoop;
 
+            // 如果eventLoop就是该执行线程,那么直接执行注册,否则包装成task丢到eventLoop队列中,等eventLoop去执行
             if (eventLoop.inEventLoop()) {
                 register0(promise);
             } else {
                 try {
+                    // 如果是启动main线程的话,到此它的任务就结束了,接下来舞台交给boss的线程
                     eventLoop.execute(new Runnable() {
                         @Override
                         public void run() {
+                            logger.info("channelId(longValue) -> [{}]即将注册到线程[{}]的selector上",promise.channel().id().asLongText(),Thread.currentThread().getName());
                             register0(promise);
                         }
                     });
@@ -493,7 +497,9 @@ public abstract class AbstractChannel extends DefaultAttributeMap implements Cha
                     return;
                 }
                 boolean firstRegistration = neverRegistered;
+                // 开始注册(重点)
                 doRegister();
+                //设置为已注册
                 neverRegistered = false;
                 registered = true;
 

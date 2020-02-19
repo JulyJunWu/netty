@@ -64,7 +64,7 @@ public abstract class MultithreadEventLoopGroup extends MultithreadEventExecutor
      * EventExecutorChooserFactory, Object...)
      */
     protected MultithreadEventLoopGroup(int nThreads, Executor executor, EventExecutorChooserFactory chooserFactory,
-                                     Object... args) {
+                                        Object... args) {
         super(nThreads == 0 ? DEFAULT_EVENT_LOOP_THREADS : nThreads, executor, chooserFactory, args);
     }
 
@@ -81,6 +81,11 @@ public abstract class MultithreadEventLoopGroup extends MultithreadEventExecutor
     @Override
     protected abstract EventLoop newChild(Executor executor, Object... args) throws Exception;
 
+    /**
+     * 注册额channel
+     * @param channel
+     * @return
+     */
     @Override
     public ChannelFuture register(Channel channel) {
         return next().register(channel);

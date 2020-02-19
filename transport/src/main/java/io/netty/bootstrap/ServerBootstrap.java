@@ -15,18 +15,7 @@
  */
 package io.netty.bootstrap;
 
-import io.netty.channel.Channel;
-import io.netty.channel.ChannelConfig;
-import io.netty.channel.ChannelFuture;
-import io.netty.channel.ChannelFutureListener;
-import io.netty.channel.ChannelHandler;
-import io.netty.channel.ChannelHandlerContext;
-import io.netty.channel.ChannelInboundHandlerAdapter;
-import io.netty.channel.ChannelInitializer;
-import io.netty.channel.ChannelOption;
-import io.netty.channel.ChannelPipeline;
-import io.netty.channel.EventLoopGroup;
-import io.netty.channel.ServerChannel;
+import io.netty.channel.*;
 import io.netty.util.AttributeKey;
 import io.netty.util.internal.ObjectUtil;
 import io.netty.util.internal.logging.InternalLogger;
@@ -129,12 +118,16 @@ public class ServerBootstrap extends AbstractBootstrap<ServerBootstrap, ServerCh
 
     @Override
     void init(Channel channel) {
+        // 设置ServerSocketChannel的一些参数
+        // 设置到ServerSocketChannelConfig上
         setChannelOptions(channel, newOptionsArray(), logger);
+        // 设置一些属性
         setAttributes(channel, attrs0().entrySet().toArray(EMPTY_ATTRIBUTE_ARRAY));
 
         ChannelPipeline p = channel.pipeline();
-
+        // work的线程池
         final EventLoopGroup currentChildGroup = childGroup;
+        // work的handler
         final ChannelHandler currentChildHandler = childHandler;
         final Entry<ChannelOption<?>, Object>[] currentChildOptions;
         synchronized (childOptions) {
@@ -142,18 +135,20 @@ public class ServerBootstrap extends AbstractBootstrap<ServerBootstrap, ServerCh
         }
         final Entry<AttributeKey<?>, Object>[] currentChildAttrs = childAttrs.entrySet().toArray(EMPTY_ATTRIBUTE_ARRAY);
 
+        // 重点 添加Handler到ServerSocketChannel的ChannelPipeline中
         p.addLast(new ChannelInitializer<Channel>() {
-            @Override
+            @Override  // ch是ServerSocketChannel, 是服务端的channel
             public void initChannel(final Channel ch) {
                 final ChannelPipeline pipeline = ch.pipeline();
                 ChannelHandler handler = config.handler();
                 if (handler != null) {
                     pipeline.addLast(handler);
                 }
-
+                // 创建一个task提交到ch所属的线程上
                 ch.eventLoop().execute(new Runnable() {
                     @Override
                     public void run() {
+                        // 主要是将客户端连接与一些属性以及handler进行关联
                         pipeline.addLast(new ServerBootstrapAcceptor(
                                 ch, currentChildGroup, currentChildHandler, currentChildOptions, currentChildAttrs));
                     }
@@ -204,6 +199,13 @@ public class ServerBootstrap extends AbstractBootstrap<ServerBootstrap, ServerCh
             };
         }
 
+        /**
+         * 重点
+         *  1.关联该客户端channel的一些 属性以及配置 和 channelHandler
+         *  2.从work中轮训得到一个线程,将该SocketChannel 进行注册到Selector中
+         * @param ctx
+         * @param msg
+         */
         @Override
         @SuppressWarnings("unchecked")
         public void channelRead(ChannelHandlerContext ctx, Object msg) {
@@ -215,7 +217,9 @@ public class ServerBootstrap extends AbstractBootstrap<ServerBootstrap, ServerCh
             setAttributes(child, childAttrs);
 
             try {
+                // 轮训一个线程 , 然后将该channel注册上去
                 childGroup.register(child).addListener(new ChannelFutureListener() {
+                    //注册完成的回调函数
                     @Override
                     public void operationComplete(ChannelFuture future) throws Exception {
                         if (!future.isSuccess()) {

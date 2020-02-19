@@ -132,6 +132,12 @@ public abstract class MultithreadEventExecutorGroup extends AbstractEventExecuto
         return new DefaultThreadFactory(getClass());
     }
 
+    /**
+     * 相当于负载均衡,轮训策略
+     * tomcat中也有获取poller线程的轮序
+     *  从线程池数组中获取一个线程池(只不过这个线程池是个单线程池,只有一个线程)
+     * @return
+     */
     @Override
     public EventExecutor next() {
         return chooser.next();

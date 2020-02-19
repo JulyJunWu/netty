@@ -15,31 +15,13 @@
  */
 package io.netty.util.concurrent;
 
-import io.netty.util.internal.ObjectUtil;
-import io.netty.util.internal.PlatformDependent;
-import io.netty.util.internal.SystemPropertyUtil;
-import io.netty.util.internal.ThreadExecutorMap;
-import io.netty.util.internal.UnstableApi;
+import io.netty.util.internal.*;
 import io.netty.util.internal.logging.InternalLogger;
 import io.netty.util.internal.logging.InternalLoggerFactory;
 
 import java.lang.Thread.State;
-import java.util.ArrayList;
-import java.util.Collection;
-import java.util.LinkedHashSet;
-import java.util.List;
-import java.util.Queue;
-import java.util.Set;
-import java.util.concurrent.BlockingQueue;
-import java.util.concurrent.Callable;
-import java.util.concurrent.CountDownLatch;
-import java.util.concurrent.ExecutionException;
-import java.util.concurrent.Executor;
-import java.util.concurrent.LinkedBlockingQueue;
-import java.util.concurrent.RejectedExecutionException;
-import java.util.concurrent.ThreadFactory;
-import java.util.concurrent.TimeUnit;
-import java.util.concurrent.TimeoutException;
+import java.util.*;
+import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicIntegerFieldUpdater;
 import java.util.concurrent.atomic.AtomicReferenceFieldUpdater;
 
@@ -340,14 +322,21 @@ public abstract class SingleThreadEventExecutor extends AbstractScheduledEventEx
     /**
      * Add a task to the task queue, or throws a {@link RejectedExecutionException} if this instance was shutdown
      * before.
+     * 添加任务到队列
      */
     protected void addTask(Runnable task) {
         ObjectUtil.checkNotNull(task, "task");
         if (!offerTask(task)) {
+            // 执行拒绝策略
             reject(task);
         }
     }
 
+    /**
+     * 将任务放入队列中
+     * @param task
+     * @return
+     */
     final boolean offerTask(Runnable task) {
         if (isShutdown()) {
             reject();
@@ -825,7 +814,10 @@ public abstract class SingleThreadEventExecutor extends AbstractScheduledEventEx
 
     private void execute(Runnable task, boolean immediate) {
         boolean inEventLoop = inEventLoop();
+        // 将任务直接放入队列中
         addTask(task);
+        // 如果是false,则说明该对象的Thread未创建,执行创建并启动
+        // 线程懒加载方式,按需加载
         if (!inEventLoop) {
             startThread();
             if (isShutdown()) {
@@ -939,6 +931,9 @@ public abstract class SingleThreadEventExecutor extends AbstractScheduledEventEx
 
     private static final long SCHEDULE_PURGE_INTERVAL = TimeUnit.SECONDS.toNanos(1);
 
+    /**
+     * 启动该 线程池对应的单线程
+     */
     private void startThread() {
         if (state == ST_NOT_STARTED) {
             if (STATE_UPDATER.compareAndSet(this, ST_NOT_STARTED, ST_STARTED)) {
@@ -973,21 +968,28 @@ public abstract class SingleThreadEventExecutor extends AbstractScheduledEventEx
         return false;
     }
 
+    /**
+     *  启动线程
+     */
     private void doStartThread() {
         assert thread == null;
         executor.execute(new Runnable() {
             @Override
             public void run() {
+                // 将当前线程赋给该线程池对应的单线程
                 thread = Thread.currentThread();
                 if (interrupted) {
                     thread.interrupt();
                 }
-
+                logger.info("线程[{}]已启动",Thread.currentThread().getName());
                 boolean success = false;
                 updateLastExecutionTime();
                 try {
+                    // 重点
                     SingleThreadEventExecutor.this.run();
                     success = true;
+                    //执行到这边则说明该线程准备关闭
+                    logger.info("线程[{}]已关闭",Thread.currentThread().getName());
                 } catch (Throwable t) {
                     logger.warn("Unexpected exception from an event executor: ", t);
                 } finally {

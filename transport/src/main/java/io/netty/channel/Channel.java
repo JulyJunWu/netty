@@ -205,6 +205,8 @@ public interface Channel extends AttributeMap, ChannelOutboundInvoker, Comparabl
      *   <li>{@link #deregister(ChannelPromise)}</li>
      *   <li>{@link #voidPromise()}</li>
      * </ul>
+     *
+     *  最终底层操作IO的传输
      */
     interface Unsafe {
 

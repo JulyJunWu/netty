@@ -58,6 +58,10 @@ public abstract class AbstractEventExecutor extends AbstractExecutorService impl
         return this;
     }
 
+    /**
+     * 执行该代码的线程 是否是 该线程池所属的线程
+     * @return
+     */
     @Override
     public boolean inEventLoop() {
         return inEventLoop(Thread.currentThread());

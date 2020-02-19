@@ -16,16 +16,7 @@
 
 package io.netty.bootstrap;
 
-import io.netty.channel.Channel;
-import io.netty.channel.ChannelFuture;
-import io.netty.channel.ChannelFutureListener;
-import io.netty.channel.ChannelHandler;
-import io.netty.channel.ChannelOption;
-import io.netty.channel.ChannelPromise;
-import io.netty.channel.DefaultChannelPromise;
-import io.netty.channel.EventLoop;
-import io.netty.channel.EventLoopGroup;
-import io.netty.channel.ReflectiveChannelFactory;
+import io.netty.channel.*;
 import io.netty.util.AttributeKey;
 import io.netty.util.concurrent.EventExecutor;
 import io.netty.util.concurrent.GlobalEventExecutor;
@@ -106,6 +97,7 @@ public abstract class AbstractBootstrap<B extends AbstractBootstrap<B, C>, C ext
      * {@link Channel} implementation has no no-args constructor.
      */
     public B channel(Class<? extends C> channelClass) {
+        // 创建一个反射工厂, 用来通过反射创建指定的hannelClass
         return channelFactory(new ReflectiveChannelFactory<C>(
                 ObjectUtil.checkNotNull(channelClass, "channelClass")
         ));
@@ -269,6 +261,7 @@ public abstract class AbstractBootstrap<B extends AbstractBootstrap<B, C>, C ext
     }
 
     private ChannelFuture doBind(final SocketAddress localAddress) {
+        // 初始化和注册(重点)
         final ChannelFuture regFuture = initAndRegister();
         final Channel channel = regFuture.channel();
         if (regFuture.cause() != null) {
@@ -307,7 +300,9 @@ public abstract class AbstractBootstrap<B extends AbstractBootstrap<B, C>, C ext
     final ChannelFuture initAndRegister() {
         Channel channel = null;
         try {
+            //通过反射工厂创建NioServerSocketChannel(服务端)或NioSocketChannel(客户端)
             channel = channelFactory.newChannel();
+            // 初始化channel(重要)
             init(channel);
         } catch (Throwable t) {
             if (channel != null) {
@@ -319,7 +314,7 @@ public abstract class AbstractBootstrap<B extends AbstractBootstrap<B, C>, C ext
             // as the Channel is not registered yet we need to force the usage of the GlobalEventExecutor
             return new DefaultChannelPromise(new FailedChannel(), GlobalEventExecutor.INSTANCE).setFailure(t);
         }
-
+        // 注册channel到selector中
         ChannelFuture regFuture = config().group().register(channel);
         if (regFuture.cause() != null) {
             if (channel.isRegistered()) {

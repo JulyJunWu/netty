@@ -76,6 +76,11 @@ public abstract class SingleThreadEventLoop extends SingleThreadEventExecutor im
         return (EventLoop) super.next();
     }
 
+    /**
+     * 将channel注册到该线程的selector中
+     * @param channel
+     * @return
+     */
     @Override
     public ChannelFuture register(Channel channel) {
         return register(new DefaultChannelPromise(channel, this));

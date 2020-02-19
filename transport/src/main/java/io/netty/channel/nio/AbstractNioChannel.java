@@ -19,14 +19,8 @@ import io.netty.buffer.ByteBuf;
 import io.netty.buffer.ByteBufAllocator;
 import io.netty.buffer.ByteBufUtil;
 import io.netty.buffer.Unpooled;
-import io.netty.channel.AbstractChannel;
 import io.netty.channel.Channel;
-import io.netty.channel.ChannelException;
-import io.netty.channel.ChannelFuture;
-import io.netty.channel.ChannelFutureListener;
-import io.netty.channel.ChannelPromise;
-import io.netty.channel.ConnectTimeoutException;
-import io.netty.channel.EventLoop;
+import io.netty.channel.*;
 import io.netty.util.ReferenceCountUtil;
 import io.netty.util.ReferenceCounted;
 import io.netty.util.internal.logging.InternalLogger;
@@ -34,11 +28,7 @@ import io.netty.util.internal.logging.InternalLoggerFactory;
 
 import java.io.IOException;
 import java.net.SocketAddress;
-import java.nio.channels.CancelledKeyException;
-import java.nio.channels.ClosedChannelException;
-import java.nio.channels.ConnectionPendingException;
-import java.nio.channels.SelectableChannel;
-import java.nio.channels.SelectionKey;
+import java.nio.channels.*;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 
@@ -49,8 +39,17 @@ public abstract class AbstractNioChannel extends AbstractChannel {
 
     private static final InternalLogger logger =
             InternalLoggerFactory.getInstance(AbstractNioChannel.class);
-
+    /**
+     * Channel对象
+     */
     private final SelectableChannel ch;
+    /**
+     * 订阅的事件
+     *  READ 1
+     *  WRITE 4
+     *  CONNECT 8
+     *  ACCEPT 16
+     */
     protected final int readInterestOp;
     volatile SelectionKey selectionKey;
     boolean readPending;
@@ -81,6 +80,7 @@ public abstract class AbstractNioChannel extends AbstractChannel {
         this.ch = ch;
         this.readInterestOp = readInterestOp;
         try {
+            // 设置为非阻塞 , tomcat是设置为阻塞
             ch.configureBlocking(false);
         } catch (IOException e) {
             try {
@@ -377,6 +377,10 @@ public abstract class AbstractNioChannel extends AbstractChannel {
         boolean selected = false;
         for (;;) {
             try {
+                // 调用JDK原生的注册了
+                // 参数1 : 是该channel关联的线程所属的selector(默认情况下这个selector是优化后的)
+                // 参数2 : 订阅的事件, 0 表示什么都不感兴趣
+                // 参数3:  当前channel对象,放入到selectionKey的attempt中
                 selectionKey = javaChannel().register(eventLoop().unwrappedSelector(), 0, this);
                 return;
             } catch (CancelledKeyException e) {
